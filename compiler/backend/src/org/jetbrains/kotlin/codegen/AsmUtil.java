@@ -845,4 +845,12 @@ public class AsmUtil {
         //Trait always should have this descriptor
         return kind != OwnerKind.TRAIT_IMPL && isStaticMethod(kind, descriptor) ? 0 : 1;
     }
+
+    public static void generateRuntimeExceptionOnStack(String message, InstructionAdapter v) {
+        v.anew(Type.getObjectType("java/lang/RuntimeException"));
+        v.dup();
+        v.aconst(message);
+        v.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/RuntimeException", "init", "(Ljava/lang/String;)V", false);
+        v.athrow();
+    }
 }

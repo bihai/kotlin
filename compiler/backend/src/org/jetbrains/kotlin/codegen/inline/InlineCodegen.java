@@ -57,6 +57,7 @@ import org.jetbrains.org.objectweb.asm.tree.MethodNode;
 import java.io.IOException;
 import java.util.*;
 
+import static org.jetbrains.kotlin.codegen.AsmUtil.generateRuntimeExceptionOnStack;
 import static org.jetbrains.kotlin.codegen.AsmUtil.getMethodAsmFlags;
 import static org.jetbrains.kotlin.codegen.AsmUtil.isPrimitive;
 import static org.jetbrains.kotlin.codegen.binding.CodegenBinding.CLASS_FOR_SCRIPT;
@@ -155,14 +156,10 @@ public class InlineCodegen extends CallGenerator {
 
     protected void generateStub(@Nullable ResolvedCall<?> resolvedCall, @NotNull ExpressionCodegen codegen) {
         leaveTemps();
-        InstructionAdapter v = codegen.v;
-        v.anew(Type.getObjectType("java/lang/RuntimeException"));
-        v.dup();
         assert resolvedCall != null;
-        String text = resolvedCall.getCall().getCallElement().getText();
-        v.aconst("Call is part of inline cycle: "  + text);
-        v.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/RuntimeException", "init", "(Ljava/lang/String;)V", false);
-        v.athrow();
+        String message = "Call is part of inline cycle: " + resolvedCall.getCall().getCallElement().getText();
+        InstructionAdapter v = codegen.v;
+        generateRuntimeExceptionOnStack(message, v);
     }
 
     private void endCall(@NotNull InlineResult result) {
