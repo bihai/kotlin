@@ -48,6 +48,7 @@ import org.jetbrains.org.objectweb.asm.Label;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 import org.jetbrains.org.objectweb.asm.Opcodes;
 import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import org.jetbrains.org.objectweb.asm.commons.Method;
 import org.jetbrains.org.objectweb.asm.tree.AbstractInsnNode;
 import org.jetbrains.org.objectweb.asm.tree.LabelNode;
@@ -127,6 +128,10 @@ public class InlineCodegen extends CallGenerator {
     @Override
     public void genCallInner(@NotNull Callable callableMethod, @Nullable ResolvedCall<?> resolvedCall, boolean callDefault, @NotNull ExpressionCodegen codegen) {
         SMAPAndMethodNode nodeAndSmap = null;
+        if (!state.getGlobalInlineContext().enterIntoInlining(resolvedCall)) {
+            generateStub(resolvedCall, codegen);
+            return;
+        }
 
         try {
             nodeAndSmap = createMethodNode(callDefault);
@@ -143,9 +148,21 @@ public class InlineCodegen extends CallGenerator {
                                        "' into \n" + (element != null ? element.getText() : "null psi element " + this.codegen.getContext().getContextDescriptor()) +
                                        (generateNodeText ? ("\ncause: " + InlineCodegenUtil.getNodeText(nodeAndSmap != null ? nodeAndSmap.getNode(): null)) : ""),
                                        e, callElement);
+        } finally {
+            state.getGlobalInlineContext().exitFromInliningOf(resolvedCall);
         }
+    }
 
-
+    protected void generateStub(@Nullable ResolvedCall<?> resolvedCall, @NotNull ExpressionCodegen codegen) {
+        leaveTemps();
+        InstructionAdapter v = codegen.v;
+        v.anew(Type.getObjectType("java/lang/RuntimeException"));
+        v.dup();
+        assert resolvedCall != null;
+        String text = resolvedCall.getCall().getCallElement().getText();
+        v.aconst("Call is part of inline cycle: "  + text);
+        v.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/RuntimeException", "init", "(Ljava/lang/String;)V", false);
+        v.athrow();
     }
 
     private void endCall(@NotNull InlineResult result) {

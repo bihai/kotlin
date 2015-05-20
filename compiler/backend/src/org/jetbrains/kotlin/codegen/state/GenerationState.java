@@ -97,6 +97,8 @@ public class GenerationState {
     @NotNull
     private final SamWrapperClasses samWrapperClasses = new SamWrapperClasses(this);
 
+    private final GlobalInlineContext globalInlineContext = new GlobalInlineContext(this);
+
     @NotNull
     private final MappingsClassesForWhenByEnum mappingsClassesForWhenByEnum = new MappingsClassesForWhenByEnum(this);
 
@@ -244,6 +246,10 @@ public class GenerationState {
     @NotNull
     public SamWrapperClasses getSamWrapperClasses() {
         return samWrapperClasses;
+    }
+
+    public GlobalInlineContext getGlobalInlineContext() {
+        return globalInlineContext;
     }
 
     @NotNull
