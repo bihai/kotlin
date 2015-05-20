@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.resolve.calls.callUtil.getCall
 import org.jetbrains.kotlin.resolve.calls.context.BasicCallResolutionContext
 import org.jetbrains.kotlin.resolve.calls.context.CallCandidateResolutionContext
 import org.jetbrains.kotlin.resolve.calls.context.CheckValueArgumentsMode
+import org.jetbrains.kotlin.resolve.calls.context.ContextDependency
 import org.jetbrains.kotlin.resolve.calls.inference.ConstraintSystem
 import org.jetbrains.kotlin.resolve.calls.inference.ConstraintSystemImpl
 import org.jetbrains.kotlin.resolve.calls.inference.InferenceErrorData
@@ -42,6 +43,7 @@ import org.jetbrains.kotlin.types.JetType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.expressions.DataFlowUtils
 import org.jetbrains.kotlin.types.expressions.ExpressionTypingUtils
+import org.jetbrains.kotlin.types.typeUtil.isSubtypeOf
 import java.util.ArrayList
 
 public class CallCompleter(
@@ -221,11 +223,35 @@ public class CallCompleter(
     ) {
         if (valueArgument.isExternal()) return
 
-        val expression = valueArgument.getArgumentExpression()
-        val deparenthesized = ArgumentTypeResolver.getLastElementDeparenthesized(expression, context)
-        if (deparenthesized == null) return
+        val expression = valueArgument.getArgumentExpression() ?: return
 
-        val recordedType = expression?.let { context.trace.getType(it) }
+        if (ArgumentTypeResolver.isFunctionLiteralArgument(expression, context)) {
+            val functionLiteral = ArgumentTypeResolver.getFunctionLiteralArgument(expression, context)
+            val lastExpression = ArgumentTypeResolver.getLastElementDeparenthesized(functionLiteral.getBodyExpression(), context)
+
+            if (lastExpression != null) {
+                val expectedReturnType = getExpectedReturnTypeFromFunctionType(context.expectedType)
+                completeOneArgument(lastExpression, context.replaceExpectedType(expectedReturnType))
+            }
+        }
+        completeOneArgument(expression, context)
+    }
+
+    private fun getExpectedReturnTypeFromFunctionType(expectedType: JetType) = when {
+        !TypeUtils.noExpectedType(expectedType) && KotlinBuiltIns.isFunctionOrExtensionFunctionType(expectedType) ->
+            KotlinBuiltIns.getReturnTypeFromFunctionType(expectedType).let {
+                if (KotlinBuiltIns.isUnit(it)) TypeUtils.UNIT_EXPECTED_TYPE else it
+            }
+        else -> TypeUtils.NO_EXPECTED_TYPE
+    }
+
+    private fun completeOneArgument(
+            expression: JetExpression,
+            context: BasicCallResolutionContext
+    ) {
+        val deparenthesized = ArgumentTypeResolver.getLastElementDeparenthesized(expression, context) ?: return
+
+        val recordedType = context.trace.getType(expression)
         var updatedType: JetType? = recordedType
 
         val results = completeCallForArgument(deparenthesized, context)
@@ -259,17 +285,15 @@ public class CallCompleter(
     ): OverloadResolutionResultsImpl<*>? {
         if (!ExpressionTypingUtils.dependsOnExpectedType(expression)) return null
 
-        val argumentCall = expression.getCall(context.trace.getBindingContext())
-        if (argumentCall == null) return null
+        val argumentCall = expression.getCall(context.trace.getBindingContext()) ?: return null
 
-        val cachedDataForCall = context.resolutionResultsCache[argumentCall]
-        if (cachedDataForCall == null) return null
+        val cachedDataForCall = context.resolutionResultsCache[argumentCall] ?: return null
 
         val (cachedResolutionResults, cachedContext, tracing) = cachedDataForCall
         [suppress("UNCHECKED_CAST")]
         val cachedResults = cachedResolutionResults as OverloadResolutionResultsImpl<CallableDescriptor>
-        val contextForArgument = cachedContext.replaceBindingTrace(context.trace)
-                .replaceExpectedType(context.expectedType).replaceCollectAllCandidates(false)
+        val contextForArgument = cachedContext.replaceBindingTrace(context.trace) .replaceExpectedType(context.expectedType)
+                .replaceCollectAllCandidates(false).replaceContextDependency(ContextDependency.INDEPENDENT)
 
         return completeCall(contextForArgument, cachedResults, tracing)
     }

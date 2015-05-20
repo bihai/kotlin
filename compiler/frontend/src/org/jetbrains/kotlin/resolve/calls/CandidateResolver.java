@@ -56,7 +56,7 @@ import static org.jetbrains.kotlin.resolve.calls.ArgumentTypeResolver.getLastEle
 import static org.jetbrains.kotlin.resolve.calls.CallResolverUtil.ResolveArgumentsMode.RESOLVE_FUNCTION_ARGUMENTS;
 import static org.jetbrains.kotlin.resolve.calls.CallResolverUtil.ResolveArgumentsMode.SHAPE_FUNCTION_ARGUMENTS;
 import static org.jetbrains.kotlin.resolve.calls.CallTransformer.CallForImplicitInvoke;
-import static org.jetbrains.kotlin.resolve.calls.context.ContextDependency.INDEPENDENT;
+import static org.jetbrains.kotlin.resolve.calls.context.ContextDependency.DEPENDENT;
 import static org.jetbrains.kotlin.resolve.calls.inference.InferencePackage.createCorrespondingExtensionFunctionTypeIfNecessary;
 import static org.jetbrains.kotlin.resolve.calls.inference.constraintPosition.ConstraintPositionKind.RECEIVER_POSITION;
 import static org.jetbrains.kotlin.resolve.calls.inference.constraintPosition.ConstraintPositionKind.VALUE_PARAMETER_POSITION;
@@ -303,35 +303,39 @@ public class CandidateResolver {
         DataFlowInfo dataFlowInfoForArgument = dataFlowInfoForArguments.getInfo(valueArgument);
 
         //todo analyze function literal body once in 'dependent' mode, then complete it with respect to expected type
-        boolean hasExpectedReturnType = !CallResolverUtil.hasUnknownReturnType(expectedType);
-        if (hasExpectedReturnType) {
-            TemporaryTraceAndCache temporaryToResolveFunctionLiteral = TemporaryTraceAndCache.create(
-                    context, "trace to resolve function literal with expected return type", argumentExpression);
-
-            JetElement statementExpression = JetPsiUtil.getExpressionOrLastStatementInBlock(functionLiteral.getBodyExpression());
-            if (statementExpression == null) return;
-            boolean[] mismatch = new boolean[1];
-            ObservableBindingTrace errorInterceptingTrace = ExpressionTypingUtils.makeTraceInterceptingTypeMismatch(
-                    temporaryToResolveFunctionLiteral.trace, statementExpression, mismatch);
-            CallCandidateResolutionContext<D> newContext = context
-                    .replaceBindingTrace(errorInterceptingTrace).replaceExpectedType(expectedType)
-                    .replaceDataFlowInfo(dataFlowInfoForArgument).replaceResolutionResultsCache(temporaryToResolveFunctionLiteral.cache)
-                    .replaceContextDependency(INDEPENDENT);
-            JetType type = argumentTypeResolver.getFunctionLiteralTypeInfo(
-                    argumentExpression, functionLiteral, newContext, RESOLVE_FUNCTION_ARGUMENTS).getType();
-            if (!mismatch[0]) {
-                constraintSystem.addSubtypeConstraint(
-                        type, effectiveExpectedType, VALUE_PARAMETER_POSITION.position(valueParameterDescriptor.getIndex()));
-                temporaryToResolveFunctionLiteral.commit();
-                return;
-            }
-        }
-        JetType expectedTypeWithoutReturnType = hasExpectedReturnType ? CallResolverUtil.replaceReturnTypeByUnknown(expectedType) : expectedType;
+        JetType expectedReturnType = KotlinBuiltIns.getReturnTypeFromFunctionType(expectedType);
+        boolean hasExpectedReturnType = !ErrorUtils.containsErrorType(expectedReturnType);
+        boolean hasUnitReturnType = KotlinBuiltIns.isUnit(expectedReturnType);
+        //if (hasExpectedReturnType) {
+        //    TemporaryTraceAndCache temporaryToResolveFunctionLiteral = TemporaryTraceAndCache.create(
+        //            context, "trace to resolve function literal with expected return type", argumentExpression);
+        //
+        //    JetElement statementExpression = JetPsiUtil.getExpressionOrLastStatementInBlock(functionLiteral.getBodyExpression());
+        //    if (statementExpression == null) return;
+        //    boolean[] mismatch = new boolean[1];
+        //    ObservableBindingTrace errorInterceptingTrace = ExpressionTypingUtils.makeTraceInterceptingTypeMismatch(
+        //            temporaryToResolveFunctionLiteral.trace, statementExpression, mismatch);
+        //    CallCandidateResolutionContext<D> newContext = context
+        //            .replaceBindingTrace(errorInterceptingTrace).replaceExpectedType(expectedType)
+        //            .replaceDataFlowInfo(dataFlowInfoForArgument).replaceResolutionResultsCache(temporaryToResolveFunctionLiteral.cache)
+        //            .replaceContextDependency(DEPENDENT);
+        //    JetType type = argumentTypeResolver.getFunctionLiteralTypeInfo(
+        //            argumentExpression, functionLiteral, newContext, RESOLVE_FUNCTION_ARGUMENTS).getType();
+        //    if (!mismatch[0]) {
+        //        constraintSystem.addSubtypeConstraint(
+        //                type, effectiveExpectedType, VALUE_PARAMETER_POSITION.position(valueParameterDescriptor.getIndex()));
+        //        temporaryToResolveFunctionLiteral.commit();
+        //        return;
+        //    }
+        //}
+        JetType expectedTypeWithNoOrUnitReturnType =
+                hasUnitReturnType ? CallResolverUtil.replaceReturnTypeBy(expectedType, KotlinBuiltIns.getInstance().getUnitType()) :
+                hasExpectedReturnType ? CallResolverUtil.replaceReturnTypeBy(expectedType, DONT_CARE) : expectedType;
         CallCandidateResolutionContext<D> newContext = context
-                .replaceExpectedType(expectedTypeWithoutReturnType).replaceDataFlowInfo(dataFlowInfoForArgument)
-                .replaceContextDependency(INDEPENDENT);
-        JetType type = argumentTypeResolver.getFunctionLiteralTypeInfo(argumentExpression, functionLiteral, newContext,
-                                                                       RESOLVE_FUNCTION_ARGUMENTS).getType();
+                .replaceExpectedType(expectedTypeWithNoOrUnitReturnType).replaceDataFlowInfo(dataFlowInfoForArgument)
+                .replaceContextDependency(DEPENDENT);
+        JetType type = argumentTypeResolver.getFunctionLiteralTypeInfo(
+                argumentExpression, functionLiteral, newContext, RESOLVE_FUNCTION_ARGUMENTS).getType();
         constraintSystem.addSubtypeConstraint(
                 type, effectiveExpectedType, VALUE_PARAMETER_POSITION.position(valueParameterDescriptor.getIndex()));
     }

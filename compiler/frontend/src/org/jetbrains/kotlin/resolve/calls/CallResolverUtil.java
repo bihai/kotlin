@@ -61,18 +61,12 @@ public class CallResolverUtil {
         return false;
     }
 
-    public static boolean hasUnknownReturnType(@NotNull JetType type) {
-        assert KotlinBuiltIns.isFunctionOrExtensionFunctionType(type);
-        JetType returnTypeFromFunctionType = KotlinBuiltIns.getReturnTypeFromFunctionType(type);
-        return ErrorUtils.containsErrorType(returnTypeFromFunctionType);
-    }
-
-    public static JetType replaceReturnTypeByUnknown(@NotNull JetType type) {
+    public static JetType replaceReturnTypeBy(@NotNull JetType type, @NotNull JetType replacement) {
         assert KotlinBuiltIns.isFunctionOrExtensionFunctionType(type);
         List<TypeProjection> arguments = type.getArguments();
         List<TypeProjection> newArguments = Lists.newArrayList();
         newArguments.addAll(arguments.subList(0, arguments.size() - 1));
-        newArguments.add(new TypeProjectionImpl(Variance.INVARIANT, DONT_CARE));
+        newArguments.add(new TypeProjectionImpl(Variance.INVARIANT, replacement));
         return new JetTypeImpl(type.getAnnotations(), type.getConstructor(), type.isMarkedNullable(), newArguments, type.getMemberScope());
     }
 

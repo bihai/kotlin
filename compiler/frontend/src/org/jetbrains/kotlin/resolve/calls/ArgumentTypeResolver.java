@@ -217,7 +217,7 @@ public class ArgumentTypeResolver {
             JetType type = getShapeTypeOfFunctionLiteral(functionLiteral, context.scope, context.trace, true);
             return TypeInfoFactoryPackage.createTypeInfo(type, context);
         }
-        return expressionTypingServices.getTypeInfo(expression, context.replaceContextDependency(INDEPENDENT));
+        return expressionTypingServices.getTypeInfo(expression, context);
     }
 
     @Nullable
