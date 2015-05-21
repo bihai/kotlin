@@ -498,6 +498,12 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
                 doExtractFunctionTest(fileName);
             }
 
+            @TestMetadata("topLevelValUnderSmartCast.kt")
+            public void testTopLevelValUnderSmartCast() throws Exception {
+                String fileName = JetTestUtils.navigationMetadata("idea/testData/refactoring/extractFunction/basic/topLevelValUnderSmartCast.kt");
+                doExtractFunctionTest(fileName);
+            }
+
             @TestMetadata("traitFunction.kt")
             public void testTraitFunction() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("idea/testData/refactoring/extractFunction/basic/traitFunction.kt");

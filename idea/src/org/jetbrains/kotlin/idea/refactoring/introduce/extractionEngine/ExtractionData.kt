@@ -30,12 +30,14 @@ import java.util.Collections
 import org.jetbrains.kotlin.psi.psiUtil.isInsideOf
 import java.util.ArrayList
 import com.intellij.psi.PsiNamedElement
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.resolve.scopes.receivers.ThisReceiver
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.resolve.calls.model.VariableAsFunctionResolvedCall
 import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
 import org.jetbrains.kotlin.idea.core.compareDescriptors
+import org.jetbrains.kotlin.idea.core.refactoring.getContextForContainingDeclarationBody
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils
 import org.jetbrains.kotlin.idea.util.psi.patternMatching.JetPsiRange
@@ -105,6 +107,10 @@ data class ExtractionData(
     val originalStartOffset: Int?
         get() = originalElements.firstOrNull()?.let { e -> e.getTextRange()!!.getStartOffset() }
 
+    val commonParent = PsiTreeUtil.findCommonParent(originalElements) as JetElement
+
+    val bindingContext: BindingContext? by Delegates.lazy { commonParent.getContextForContainingDeclarationBody() }
+
     private val itFakeDeclaration by Delegates.lazy { JetPsiFactory(originalFile).createParameter("it: Any?") }
 
     val refOffsetToDeclaration by Delegates.lazy {
@@ -115,33 +121,35 @@ data class ExtractionData(
         }
 
         val originalStartOffset = originalStartOffset
+        val context = bindingContext
 
-        if (originalStartOffset != null) {
+        if (originalStartOffset != null && context != null) {
             val resultMap = HashMap<Int, ResolveResult>()
 
-            for ((ref, context) in JetFileReferencesResolver.resolve(originalFile, getExpressions())) {
-                if (ref !is JetSimpleNameExpression) continue
-                if (ref.getParent() is JetValueArgumentName) continue
+            val visitor = object: JetTreeVisitorVoid() {
+                override fun visitSimpleNameExpression(ref: JetSimpleNameExpression) {
+                    if (ref !is JetSimpleNameExpression) return
+                    if (ref.getParent() is JetValueArgumentName) return
 
-                val resolvedCall = ref.getResolvedCall(context)?.let {
-                    (it as? VariableAsFunctionResolvedCall)?.functionCall ?: it
+                    val resolvedCall = ref.getResolvedCall(context)
+                    val descriptor = context[BindingContext.REFERENCE_TARGET, ref] ?: return
+                    val declaration = DescriptorToSourceUtilsIde.getAnyDeclaration(project, descriptor) as? PsiNamedElement
+                                      ?: if (isExtractableIt(descriptor, context)) itFakeDeclaration else return
+
+                    val offset = ref.getTextRange()!!.getStartOffset() - originalStartOffset
+                    resultMap[offset] = ResolveResult(ref, declaration, descriptor, resolvedCall)
                 }
-
-                val descriptor = context[BindingContext.REFERENCE_TARGET, ref]
-                if (descriptor == null) continue
-
-                val declaration = DescriptorToSourceUtilsIde.getAnyDeclaration(project, descriptor) as? PsiNamedElement
-                        ?: if (isExtractableIt(descriptor, context)) itFakeDeclaration else continue
-
-                val offset = ref.getTextRange()!!.getStartOffset() - originalStartOffset
-                resultMap[offset] = ResolveResult(ref, declaration, descriptor, resolvedCall)
             }
+            getExpressions().forEach { it.accept(visitor) }
+
             resultMap
         }
         else Collections.emptyMap<Int, ResolveResult>()
     }
 
     fun getBrokenReferencesInfo(body: JetBlockExpression): List<ResolvedReferenceInfo> {
+        val originalContext = bindingContext ?: return listOf()
+
         val startOffset = body.getBlockContentOffset()
 
         val referencesInfo = ArrayList<ResolvedReferenceInfo>()
@@ -163,8 +171,9 @@ data class ExtractionData(
             if (parent is JetUserType && (parent.getParent() as? JetUserType)?.getQualifier() == parent) continue
 
             val descriptor = context[BindingContext.REFERENCE_TARGET, ref]
-            if (!compareDescriptors(project, originalResolveResult.descriptor, descriptor)
-                    && !originalResolveResult.declaration.isInsideOf(originalElements)) {
+            val isBadRef = !compareDescriptors(project, originalResolveResult.descriptor, descriptor)
+                           || originalContext[BindingContext.SMARTCAST, originalResolveResult.originalRefExpr] != null
+            if (isBadRef && !originalResolveResult.declaration.isInsideOf(originalElements)) {
                 referencesInfo.add(ResolvedReferenceInfo(ref, offset, originalResolveResult))
             }
         }
