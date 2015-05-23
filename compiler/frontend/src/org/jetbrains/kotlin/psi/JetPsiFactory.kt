@@ -577,7 +577,7 @@ public class JetPsiFactory(private val project: Project) {
 
     private inner class BlockWrapper(fakeBlockExpression: JetBlockExpression, private val expression: JetExpression) : JetBlockExpression(fakeBlockExpression.getNode()), JetPsiUtil.JetExpressionWrapper {
 
-        override fun getStatements(): List<JetElement> {
+        override fun getStatements(): List<JetExpression> {
             return listOf(expression)
         }
 

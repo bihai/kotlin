@@ -24,8 +24,6 @@ import com.intellij.psi.PsiComment;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiWhiteSpace;
-import com.intellij.psi.impl.CheckUtil;
-import com.intellij.psi.impl.source.codeStyle.CodeEditUtil;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.codeInsight.CommentUtilCore;
@@ -36,7 +34,6 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.JetNodeTypes;
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns;
 import org.jetbrains.kotlin.kdoc.psi.api.KDocElement;
-import org.jetbrains.kotlin.lexer.JetKeywordToken;
 import org.jetbrains.kotlin.lexer.JetToken;
 import org.jetbrains.kotlin.lexer.JetTokens;
 import org.jetbrains.kotlin.name.FqName;
@@ -412,7 +409,7 @@ public class JetPsiUtil {
     }
 
     @Nullable
-    public static JetElement getExpressionOrLastStatementInBlock(@Nullable JetExpression expression) {
+    public static JetExpression getExpressionOrLastStatementInBlock(@Nullable JetExpression expression) {
         if (expression instanceof JetBlockExpression) {
             return getLastStatementInABlock((JetBlockExpression) expression);
         }
@@ -420,9 +417,9 @@ public class JetPsiUtil {
     }
 
     @Nullable
-    public static JetElement getLastStatementInABlock(@Nullable JetBlockExpression blockExpression) {
+    public static JetExpression getLastStatementInABlock(@Nullable JetBlockExpression blockExpression) {
         if (blockExpression == null) return null;
-        List<JetElement> statements = blockExpression.getStatements();
+        List<JetExpression> statements = blockExpression.getStatements();
         return statements.isEmpty() ? null : statements.get(statements.size() - 1);
     }
 
@@ -590,7 +587,7 @@ public class JetPsiUtil {
     }
 
     public static boolean checkVariableDeclarationInBlock(@NotNull JetBlockExpression block, @NotNull String varName) {
-        for (JetElement element : block.getStatements()) {
+        for (JetExpression element : block.getStatements()) {
             if (element instanceof JetVariableDeclaration) {
                 if (((JetVariableDeclaration) element).getNameAsSafeName().asString().equals(varName)) {
                     return true;

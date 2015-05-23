@@ -308,7 +308,7 @@ public class CandidateResolver {
             TemporaryTraceAndCache temporaryToResolveFunctionLiteral = TemporaryTraceAndCache.create(
                     context, "trace to resolve function literal with expected return type", argumentExpression);
 
-            JetElement statementExpression = JetPsiUtil.getExpressionOrLastStatementInBlock(functionLiteral.getBodyExpression());
+            JetExpression statementExpression = JetPsiUtil.getExpressionOrLastStatementInBlock(functionLiteral.getBodyExpression());
             if (statementExpression == null) return;
             boolean[] mismatch = new boolean[1];
             ObservableBindingTrace errorInterceptingTrace = ExpressionTypingUtils.makeTraceInterceptingTypeMismatch(

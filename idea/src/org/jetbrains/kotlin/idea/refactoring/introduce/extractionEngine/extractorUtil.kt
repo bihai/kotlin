@@ -500,7 +500,7 @@ fun ExtractionGeneratorConfiguration.generateDeclaration(
 
         val defaultValue = descriptor.controlFlow.defaultOutputValue
 
-        val lastExpression = body.getStatements().lastOrNull() as? JetExpression
+        val lastExpression = body.getStatements().lastOrNull()
         if (lastExpression is JetReturnExpression) return
 
         val (defaultExpression, expressionToUnifyWith) =
