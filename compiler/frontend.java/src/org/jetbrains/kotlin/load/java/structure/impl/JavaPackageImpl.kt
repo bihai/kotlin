@@ -24,13 +24,18 @@ import org.jetbrains.kotlin.load.java.structure.impl.JavaElementCollectionFromPs
 import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.name.Name
 import com.intellij.psi.search.GlobalSearchScope
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.name.FqNameUnsafe
 
 public class JavaPackageImpl(psiPackage: PsiPackage, private val scope: GlobalSearchScope) : JavaElementImpl<PsiPackage>(psiPackage), JavaPackage {
 
     override fun getClasses(nameFilter: (Name) -> Boolean): Collection<JavaClass> {
         val psiClasses = getPsi().getClasses(scope).filter {
             val name = it.getName()
-            name != null && nameFilter(Name.identifier(name))
+            name != null && nameFilter(Name.identifier(name)) && it.getQualifiedName()?.let {
+                // TODO: drop after M12
+                !FqNameUnsafe.isValid(it) || !KotlinBuiltIns.isNumberedFunctionClassFqName(FqNameUnsafe(it))
+            } ?: true
         }
         return classes(psiClasses)
     }
