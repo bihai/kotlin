@@ -346,5 +346,7 @@ public class QuickFixRegistrar {
 
         QuickFixes.factories.put(DEPRECATED_SYMBOL_WITH_MESSAGE, DeprecatedSymbolUsageFix.Companion);
         QuickFixes.factories.put(DEPRECATED_SYMBOL_WITH_MESSAGE, DeprecatedSymbolUsageInWholeProjectFix.Companion);
+        QuickFixes.factories.put(DEPRECATED_SYMBOL, DeprecatedSymbolUsageFix.Companion);
+        QuickFixes.factories.put(DEPRECATED_SYMBOL, DeprecatedSymbolUsageInWholeProjectFix.Companion);
     }
 }
