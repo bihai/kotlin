@@ -1,0 +1,2 @@
+ERROR: Source file or directory not found: compiler/testData/cli/js/nonExistingSourceFile.kt
+COMPILATION_ERROR

@@ -214,6 +214,12 @@ public class KotlincExecutableTestGenerated extends AbstractKotlincExecutableTes
             doJsTest(fileName);
         }
 
+        @TestMetadata("emptySources.args")
+        public void testEmptySources() throws Exception {
+            String fileName = JetTestUtils.navigationMetadata("compiler/testData/cli/js/emptySources.args");
+            doJsTest(fileName);
+        }
+
         @TestMetadata("inlineCycle.args")
         public void testInlineCycle() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/cli/js/inlineCycle.args");
@@ -235,6 +241,12 @@ public class KotlincExecutableTestGenerated extends AbstractKotlincExecutableTes
         @TestMetadata("libraryDirNotFound.args")
         public void testLibraryDirNotFound() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/cli/js/libraryDirNotFound.args");
+            doJsTest(fileName);
+        }
+
+        @TestMetadata("nonExistingSourcePath.args")
+        public void testNonExistingSourcePath() throws Exception {
+            String fileName = JetTestUtils.navigationMetadata("compiler/testData/cli/js/nonExistingSourcePath.args");
             doJsTest(fileName);
         }
 

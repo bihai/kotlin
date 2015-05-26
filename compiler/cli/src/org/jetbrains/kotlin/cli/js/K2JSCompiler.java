@@ -36,10 +36,7 @@ import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys;
 import org.jetbrains.kotlin.cli.common.ExitCode;
 import org.jetbrains.kotlin.cli.common.arguments.K2JSCompilerArguments;
 import org.jetbrains.kotlin.cli.common.arguments.K2JsArgumentConstants;
-import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport;
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation;
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity;
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector;
+import org.jetbrains.kotlin.cli.common.messages.*;
 import org.jetbrains.kotlin.cli.common.output.outputUtils.OutputUtilsPackage;
 import org.jetbrains.kotlin.cli.jvm.compiler.CompilerJarLocator;
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles;
@@ -114,6 +111,16 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
         if (arguments.outputFile == null) {
             messageCollector.report(CompilerMessageSeverity.ERROR, "Specify output file via -output", CompilerMessageLocation.NO_LOCATION);
             return ExitCode.INTERNAL_ERROR;
+        }
+
+        if (messageCollector instanceof MessageSeverityCollector) {
+            if (((MessageSeverityCollector)messageCollector).anyReported(CompilerMessageSeverity.ERROR)) {
+                return ExitCode.INTERNAL_ERROR;
+            }
+        }
+
+        if (sourcesFiles.isEmpty()) {
+            return OK;
         }
 
         File outputFile = new File(arguments.outputFile);
