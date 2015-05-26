@@ -148,6 +148,7 @@ public class DeprecatedSymbolUsageInWholeProjectFix(
                 }
             }
 
+            //TODO: balloon
             if (!ApplicationManager.getApplication().isUnitTestMode()) {
                 MessagesEx.showInfoMessage(null, "$replacedCount usages found and replaced", getText())
             }
